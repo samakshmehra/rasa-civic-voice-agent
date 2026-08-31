@@ -340,6 +340,19 @@ class LocateIncidentTests(unittest.TestCase):
         note = context.memory.get("location_note")
         self.assertIn("near the pole outside our lane", note)
 
+    def test_the_description_survives_a_search_attempt(self) -> None:
+        # A new map search must not wipe what the caller said about the spot.
+        context = confirmed_area("streetlight")
+        with patch("tools.civic.geocode_lookup", return_value=[]):
+            self.call(
+                context, spoken="near the pole outside our lane", cleaned="pole"
+            )
+        self.call(context, spoken="there is nothing nearby at all")
+
+        self.assertIn(
+            "near the pole outside our lane", context.memory.get("location_note")
+        )
+
     def test_a_streetlight_is_asked_more_often_than_garbage(self) -> None:
         def questions_before_settling(category):
             context = confirmed_area(category)

@@ -86,6 +86,9 @@ inspect: check-uv guard-env ## Open the Inspector (voice + text)
 run: check-uv guard-env ## Start the agent API server
 	$(RASA) run --enable-api
 
+demo-call: check-uv ## Talk to a running agent from the terminal (needs `make run`)
+	@$(PYTHON) scripts/demo_call.py $(ARGS)
+
 show-demo-data: check-uv ## Print mock routing and seeded complaints
 	@$(PYTHON) scripts/show_demo_data.py
 

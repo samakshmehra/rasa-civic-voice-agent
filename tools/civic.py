@@ -145,7 +145,6 @@ EXACT_AND_DOWNSTREAM_FIELDS = (
     "exact_landmark_raw",
     "location_settled",
     "location_precision",
-    "location_note",
     "location_summary",
     "exact_location_candidates",
     "exact_location_confirmed",

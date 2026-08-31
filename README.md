@@ -186,8 +186,15 @@ against the existing complaint — it does not merely claim one was.
 ### Try it
 
 ```bash
-make show-demo-data
+make run                                    # one terminal
+make demo-call                              # another — type turns yourself
+make demo-call ARGS="--script vague"        # or replay a scripted call
+make show-demo-data                         # what is seeded
 ```
+
+`--script vague` is the one worth watching: a caller who genuinely cannot name
+a landmark. `--script exact` plays one who can. `--plain` drops the colour if
+you are pasting the output somewhere.
 
 | Say this | What it exercises |
 | --- | --- |
@@ -252,9 +259,12 @@ Pinned to `rasa-pro==3.19.0.dev3`.
 ## Known rough edges
 
 **The model can end a call early.** `complete_skill` is engine-provided and
-cannot be gated — `tool_constraints` only resolves your own tools. Seen once in
-roughly a dozen runs: the model ended a complaint three-quarters of the way
-through, with nothing filed. Written up as finding #19.
+cannot be gated — `tool_constraints` only resolves your own tools. The model
+ends the complaint partway through, usually just after the callback number,
+with "is there anything else?" and nothing filed. This is intermittent rather
+than rare: it happened on both attempts at recording a demo call. The happy
+path does complete — the transcripts in this README are real — but not
+dependably. Written up as finding #19.
 
 **Skill selection varies by model.** On two models tested, a broadly-described
 sub-skill was activated mid-complaint, bypassing the constrained flow entirely.

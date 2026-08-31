@@ -415,10 +415,12 @@ guards the skill boundary.
 the engine. They are callable at every turn and there is no lever that governs
 them.
 
-Observed: three-quarters of the way through a complaint — category set,
-locality and PIN confirmed, description captured — the model called
-`complete_skill` and ended the conversation with "Can I help with anything
-else?". Nothing had been filed. The skill file says, in plain prose:
+Observed repeatedly: partway through a complaint — category set, locality and
+PIN confirmed, description and callback number captured — the model calls
+`complete_skill` and ends with "is there anything else?". Nothing is filed. It
+is intermittent, not rare; it happened on both attempts at recording a demo
+call, having not appeared in several runs before that. The skill file says, in
+plain prose:
 
 > Do not consider this skill finished until either `@tool.submit_complaint` or
 > `@tool.attach_to_existing_complaint` succeeds.
@@ -480,8 +482,10 @@ What would help, roughly in order of usefulness:
       seeded complaint nearby, location read back honestly.
 - [x] Approximate path end to end — settles at `locality_approximate` with
       the caller's own words once the effort budget is spent.
-- [ ] How often `complete_skill` ends a complaint early (see #19) — seen
-      once in roughly a dozen runs, cause not established
+- [ ] How often `complete_skill` ends a complaint early (see #19). Frequent
+      enough to block a demo recording, and no rate measured yet. It tends to
+      fire just after the callback number, before the duplicate check — worth
+      checking whether the ordered block loses its position there.
 
 ---
 
