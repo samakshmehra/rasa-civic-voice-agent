@@ -1,0 +1,9 @@
+schema:
+  public:
+    status:
+      type: categorical
+      enum_values: [registered, assigned, in_progress, resolved, rejected]
+    citizen_disputes_resolution:
+      type: bool
+      description: Citizen says a resolved complaint is not actually fixed.
+      llm_settable: true

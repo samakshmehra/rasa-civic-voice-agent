@@ -1,0 +1,43 @@
+responses:
+  utter_recording_notice:
+    - text: >
+        This demo conversation may be recorded for quality and testing.
+
+  utter_confirm_complaint:
+    - text: >
+        Shall I register this demo complaint with
+        {session.project.authority_name}, for the
+        {session.project.department} department, now?
+
+  utter_complaint_cancelled:
+    - text: >
+        Okay, I have not registered anything. Tell me what you would like to
+        change.
+
+  utter_complaint_registered:
+    - text: >
+        Your complaint number is {session.project.spoken_complaint_id}.
+        It is routed to {session.project.authority_name}, in the
+        {session.project.department} department, under
+        {session.project.ward}. The location is
+        {session.project.location_summary}. The ward officer on record is
+        {session.project.ward_officer_name}, on
+        {session.project.ward_officer_contact}. For this beta demo, the service
+        target is
+        {session.project.sla_days} working days.
+
+  utter_authority_review:
+    - text: >
+        I could not find a demo route for that complaint, so I have not
+        registered anything. Please choose one of the six supported problem
+        types.
+
+  utter_complaint_attached:
+    - text: >
+        Your report has been added to complaint
+        {session.project.spoken_complaint_id}. No new complaint was created.
+
+  utter_system_down:
+    - text: >
+        I could not reach the demo system just now, so nothing has been
+        registered. Please try again in a few minutes.

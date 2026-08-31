@@ -1,0 +1,14 @@
+responses:
+  utter_confirm_handoff:
+    - text: Shall I arrange a callback from your ward office?
+  utter_handoff_cancelled:
+    - text: Okay, I will keep helping you here. What would you like to do next?
+  utter_handoff_created:
+    - text: >
+        Your ward-office callback ticket is
+        {session.human_handoff.spoken_ticket_id}. The office will call the number
+        on file.
+  utter_handoff_failed:
+    - text: >
+        I could not create a callback ticket just now. Please call your ward
+        office directly or try again later.

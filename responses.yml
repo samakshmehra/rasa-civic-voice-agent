@@ -1,0 +1,9 @@
+responses:
+  utter_greet:
+    - text: >
+        Hello! I'm Civico, a demo municipal complaint assistant.
+        I can register a new civic complaint, check the status of an existing one,
+        or answer questions about how the complaint process works.
+        What would you like to do?
+      metadata:
+        rephrase: true

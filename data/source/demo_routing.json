@@ -1,0 +1,105 @@
+{
+  "version": "demo-v1",
+  "notice": "Fictional routing and target times for the Civico demo. Location results come separately from OpenStreetMap.",
+  "authority": {
+    "id": "civico-demo-services",
+    "name": "Civico Demo Municipal Services"
+  },
+  "ward_officers": [
+    {
+      "name": "A. Sharma",
+      "contact": "1800-000-0101"
+    },
+    {
+      "name": "M. Iyer",
+      "contact": "1800-000-0102"
+    },
+    {
+      "name": "R. Banerjee",
+      "contact": "1800-000-0103"
+    },
+    {
+      "name": "S. Kaur",
+      "contact": "1800-000-0104"
+    },
+    {
+      "name": "T. Fernandes",
+      "contact": "1800-000-0105"
+    }
+  ],
+  "routes": {
+    "garbage": {
+      "department": "Sanitation",
+      "queue_id": "DEMO-SANITATION",
+      "sla_days": "2"
+    },
+    "water_supply": {
+      "department": "Water Services",
+      "queue_id": "DEMO-WATER",
+      "sla_days": "3"
+    },
+    "streetlight": {
+      "department": "Street Lighting",
+      "queue_id": "DEMO-LIGHTS",
+      "sla_days": "3"
+    },
+    "drainage": {
+      "department": "Drainage",
+      "queue_id": "DEMO-DRAINAGE",
+      "sla_days": "5"
+    },
+    "stray_animals": {
+      "department": "Animal Care",
+      "queue_id": "DEMO-ANIMALS",
+      "sla_days": "5"
+    },
+    "pothole": {
+      "department": "Road Maintenance",
+      "queue_id": "DEMO-ROADS",
+      "sla_days": "7"
+    }
+  },
+  "location_precision": {
+    "notice": "Precision each demo department needs, and how many times to ask before accepting the caller's own description instead. Never blocks filing.",
+    "levels": {
+      "exact": {
+        "attempts_before_approximate": 2,
+        "ask_for": "the nearest shop, gate, building or junction"
+      },
+      "street": {
+        "attempts_before_approximate": 1,
+        "ask_for": "the road or lane name"
+      },
+      "area": {
+        "attempts_before_approximate": 0,
+        "ask_for": ""
+      }
+    },
+    "by_category": {
+      "streetlight": {
+        "requires": "exact",
+        "reason": "the crew has to find one specific pole"
+      },
+      "pothole": {
+        "requires": "exact",
+        "reason": "one road can have several, and the repair is spot-specific"
+      },
+      "drainage": {
+        "requires": "street",
+        "reason": "the crew works a drain line rather than a single point"
+      },
+      "water_supply": {
+        "requires": "street",
+        "reason": "supply faults affect a whole line or building"
+      },
+      "garbage": {
+        "requires": "street",
+        "reason": "a collection round already covers the street"
+      },
+      "stray_animals": {
+        "requires": "area",
+        "reason": "animals move, so the catching team works an area"
+      }
+    }
+  }
+}

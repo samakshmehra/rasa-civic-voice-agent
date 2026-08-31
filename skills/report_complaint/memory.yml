@@ -1,0 +1,32 @@
+schema:
+  public:
+    category:
+      type: categorical
+      description: The kind of civic problem being reported.
+      enum_values: [pothole, water_supply, garbage, streetlight, drainage, stray_animals]
+      llm_settable: true
+    description:
+      type: text
+      description: The citizen's description of the problem in their own words.
+      llm_settable: true
+    duplicate_found:
+      type: bool
+    existing_complaint_id:
+      type: text
+    duplicate_decision:
+      type: categorical
+      description: Whether to attach to the existing complaint or file a new one.
+      enum_values: [attach, new]
+      llm_settable: true
+    override_reason:
+      type: text
+      description: Why the citizen says their report is not the same problem.
+      llm_settable: true
+    contact_confirmed:
+      type: bool
+      description: Whether the callback number has been read back and confirmed.
+      llm_settable: true
+    details_verified:
+      type: bool
+      description: Whether the summary was read back and confirmed. Gates submit.
+      llm_settable: true

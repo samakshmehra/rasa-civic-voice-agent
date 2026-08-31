@@ -1,0 +1,14 @@
+.env
+.venv/
+models/
+.rasa/
+logs/
+data/civic.db
+__pycache__/
+*.pyc
+.DS_Store
+.coverage
+htmlcov/
+.pytest_cache/
+*.egg-info/
+.uv-cache/

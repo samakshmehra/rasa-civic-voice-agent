@@ -1,0 +1,103 @@
+# Project-wide memory shared across skills (session.project.*)
+citizen_name:
+  type: text
+  description: >
+    Name of the caller, only if they choose to give one. Nothing is assumed —
+    a civic line has no accounts, so the agent starts knowing nobody.
+  llm_settable: true
+contact_number:
+  type: text
+  description: Phone number the department can call back on. Asked, never assumed.
+  llm_settable: true
+citizen_id:
+  type: text
+known_caller:
+  type: bool
+  description: True when the number given matches someone already in the system.
+recording_notice_played:
+  type: bool
+  description: >
+    True once the recording notice has been given this call. Gates the notice
+    so it plays once per call, not once per skill (re)activation.
+  llm_settable: true
+location_text:
+  type: text
+raw_location:
+  type: text
+broad_location_query:
+  type: text
+broad_location_candidates:
+  type: json
+broad_location_confirmed:
+  type: bool
+locality:
+  type: text
+area:
+  type: text
+city:
+  type: text
+state:
+  type: text
+pincode:
+  type: text
+broad_latitude:
+  type: float
+broad_longitude:
+  type: float
+broad_bounding_box:
+  type: json
+broad_osm_place_id:
+  type: text
+exact_landmark_raw:
+  type: text
+exact_location_candidates:
+  type: json
+exact_location_confirmed:
+  type: bool
+location_settled:
+  type: bool
+location_precision:
+  type: text
+location_note:
+  type: text
+location_summary:
+  type: text
+precision_required:
+  type: text
+exact_attempts:
+  type: int
+location_asks:
+  type: int
+latitude:
+  type: float
+longitude:
+  type: float
+osm_place_id:
+  type: text
+complaint_id:
+  type: text
+  description: Complaint reference being filed or tracked.
+spoken_complaint_id:
+  type: text
+department:
+  type: text
+sla_days:
+  type: text
+service_area_id:
+  type: text
+authority_id:
+  type: text
+authority_name:
+  type: text
+zone:
+  type: text
+ward:
+  type: text
+ward_officer_name:
+  type: text
+ward_officer_contact:
+  type: text
+routing_rule_version:
+  type: text
+routing_source:
+  type: text
