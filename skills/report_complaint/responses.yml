@@ -1,4 +1,10 @@
 responses:
+  utter_unsupported_problem:
+    - text: >
+        This demo line only handles potholes, water supply, garbage, street
+        lights, drainage, and stray animals. I can pass you to the ward office
+        for anything else.
+
   utter_recording_notice:
     - text: >
         This demo conversation may be recorded for quality and testing.

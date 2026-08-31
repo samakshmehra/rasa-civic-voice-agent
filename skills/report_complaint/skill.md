@@ -5,6 +5,7 @@ description: >
   light, drainage, or stray animals. Activate when the citizen wants to report,
   complain about, or register a civic problem.
 import_tools:
+  - record_problem_category
   - reset_complaint_context
   - lookup_caller
   - resolve_broad_location
@@ -16,6 +17,8 @@ import_tools:
   - route_to_authority
   - submit_complaint
 tool_constraints:
+  - record_problem_category:
+      on_failure: utter_unsupported_problem
   - confirm_broad_location:
       requires: session.project.broad_location_candidates
   - locate_incident:
@@ -65,21 +68,20 @@ department, or SLA. OpenStreetMap tools provide place facts;
 Never state an authority, department, or resolution timeline that did not come
 from `@tool.route_to_authority`.
 
-The first time you enter this skill in this call, immediately set
-`recording_notice_played` to true. The recording notice plays once per call,
-not every time the skill reactivates.
-
 Do not consider this skill finished until either `@tool.submit_complaint` or
 `@tool.attach_to_existing_complaint` succeeds. A confirmed location, contact
 number, description, duplicate choice, or routing result is only progress.
 
 ## Identify the problem
 
-Ask what the problem is. Set `category` to exactly one of: pothole,
-water_supply, garbage, streetlight, drainage, stray_animals.
+Ask what the problem is, then call `@tool.record_problem_category` with one of:
+pothole, water_supply, garbage, streetlight, drainage, stray_animals. Call it
+as soon as you know — saying you have noted the problem does not record it, and
+nothing else in this skill works until the tool has run.
 
-If the citizen describes something outside those six, say this line only
-handles those problems and offer the ward office instead.
+If the tool reports `unsupported_category`, say this line only handles those
+six problems and offer the ward office instead. Do not pick a category for
+them.
 
 ## Collect and locate the report
 

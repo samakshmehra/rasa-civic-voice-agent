@@ -271,6 +271,97 @@ def _duplicate_radius_meters() -> float:
         return 300.0
 
 
+@tool(
+    description=(
+        "Record which of the six civic problems the caller is reporting. Call "
+        "this as soon as you know, before asking anything about location. "
+        "Pass one of: pothole, water_supply, garbage, streetlight, drainage, "
+        "stray_animals."
+    )
+)
+async def record_problem_category(
+    category: str = "", context: ToolContext = None
+) -> ToolResult:
+    """Record the problem category, as a tool call rather than a field write.
+
+    This was an `llm_settable` field the skill asked the model to set. The model
+    reliably *said* it had — "I'll register the streetlight complaint" — without
+    ever writing it, and the whole flow then ran with no category: the location
+    step started before the locality was confirmed, and the caller was asked
+    what kind of problem it was after they had already described it twice.
+
+    A tool call either happens or it does not, and the result comes back in the
+    transcript. That difference has mattered everywhere it has been tried here.
+    """
+    normalized = str(category or "").strip().lower().replace(" ", "_").replace("-", "_")
+    aliases = {
+        "street_light": "streetlight",
+        "streetlights": "streetlight",
+        "water": "water_supply",
+        "water_supply_issue": "water_supply",
+        "stray_animal": "stray_animals",
+        "strays": "stray_animals",
+        "potholes": "pothole",
+        "garbage_collection": "garbage",
+        "sewage": "drainage",
+    }
+    normalized = aliases.get(normalized, normalized)
+
+    try:
+        requirement = authority_precision_for(normalized)
+    except DemoRoutingError as exc:
+        return ToolResult(
+            llm_response={
+                "ok": False,
+                "error": "demo_routing_unavailable",
+                "detail": str(exc)[:200],
+            }
+        )
+
+    if requirement is None:
+        return ToolResult(
+            llm_response={
+                "ok": False,
+                "error": "unsupported_category",
+                "heard": category,
+                "supported": [
+                    "pothole",
+                    "water_supply",
+                    "garbage",
+                    "streetlight",
+                    "drainage",
+                    "stray_animals",
+                ],
+                "hint": (
+                    "Say this line only handles those six problems and offer the "
+                    "ward office. Do not guess a category on their behalf."
+                ),
+            }
+        )
+
+    if context is not None:
+        context.memory.set("category", normalized)
+        # The recording notice is gated on this flag. Setting it here rather
+        # than asking the model to means it never announces "I need to note the
+        # recording notice first" as though it were a step in the conversation.
+        context.memory.set("recording_notice_played", True)
+
+    return ToolResult(
+        llm_response={
+            "ok": True,
+            "category": normalized,
+            "precision_required": requirement["requires"],
+            "hint": (
+                "Now ask where it is, broadly: their locality with the city, or "
+                "their six-digit PIN code. Either one on its own is enough — do "
+                "not insist on both. Pass whatever they say to "
+                "resolve_broad_location; the map supplies the PIN code. Do not "
+                "ask for a landmark yet."
+            ),
+        }
+    )
+
+
 @tool(description="Clear location and routing state before starting a new complaint.")
 async def reset_complaint_context(context: ToolContext = None) -> ToolResult:
     """Prevent a second complaint in one call from reusing stale project memory.

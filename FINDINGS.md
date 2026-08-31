@@ -417,7 +417,14 @@ them.
 
 Observed repeatedly: partway through a complaint — category set, locality and
 PIN confirmed, description and callback number captured — the model calls
-`complete_skill` and ends with "is there anything else?". Nothing is filed. It
+`complete_skill` and ends with "is there anything else?". Nothing is filed.
+
+It consistently survives the first half. Category, the two-stage location, and
+the fallback to a locality-level location all complete reliably. The derail
+happens after the description step: the model either re-asks for a locality it
+has already confirmed, or ends the skill outright. Both leave `location_settled`
+true and the complaint unfiled, so state is intact — it is the flow position
+that is lost, not the data. It
 is intermittent, not rare; it happened on both attempts at recording a demo
 call, having not appeared in several runs before that. The skill file says, in
 plain prose:
@@ -456,6 +463,32 @@ What would help, roughly in order of usefulness:
 2. A skill-level `complete_when`, mirroring the one on ordered-block steps.
 3. At minimum, a logged warning when `complete_skill` fires while an ordered
    block still has unfinished steps — the run above produced no such signal.
+
+## 20. `set_` is a reserved tool-name prefix, and the resulting error points somewhere else — LOW
+
+Naming a tool `set_problem_category` fails the build with:
+
+```
+[calm_v2.validation.tools.unresolved_tool] Skill 'report_complaint' references
+tool 'set_problem_category', but no matching @tool function was found in
+skills/report_complaint/tools.py, skills/report_complaint/tools/, or the
+declared shared tools/ folder.
+```
+
+The function is there, decorated with `@tool`, in the declared shared folder.
+The real cause is a reserved prefix — presumably guarding the engine's own
+`set_fields` — and it is reported separately, at WARNING level, in a line that
+does not say what the rule is:
+
+```
+[calm_v2.tool_loader.shared_tool.reserved_prefix] tool_name=set_problem_category
+```
+
+Two small things would save the next person the detour: have the validation
+error name the actual cause rather than telling you to add a function that
+already exists, and have the warning say which prefixes are reserved.
+
+Renaming to `record_problem_category` fixed it immediately.
 
 ## Still to test
 
@@ -504,6 +537,12 @@ What would help, roughly in order of usefulness:
 - Ward-office callback tickets are now persisted instead of generated and lost.
 - Deterministic demo-routing, map-adapter, and database coverage lives in
   `tests/test_civic.py`.
+- The problem category is recorded by a tool, not an `llm_settable` field. As
+  a field, the model reliably announced it had noted the category — "I'll
+  register the streetlight complaint" — without writing anything, and the whole
+  flow then ran with no category: location started before the locality was
+  confirmed, and the caller was asked what kind of problem it was after
+  describing it twice. A tool call either happens or it does not.
 - Every path in `assess_location` that asks the caller a question now spends
   the attempt budget. Two did not: the `needs_more` branch, and the override
   branch where the model says a spot is good enough and configuration

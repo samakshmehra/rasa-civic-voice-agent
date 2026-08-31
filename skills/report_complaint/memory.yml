@@ -2,9 +2,7 @@ schema:
   public:
     category:
       type: categorical
-      description: The kind of civic problem being reported.
       enum_values: [pothole, water_supply, garbage, streetlight, drainage, stray_animals]
-      llm_settable: true
     description:
       type: text
       description: The citizen's description of the problem in their own words.
