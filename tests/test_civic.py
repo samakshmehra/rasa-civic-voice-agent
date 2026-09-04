@@ -290,7 +290,14 @@ class LocateIncidentTests(unittest.TestCase):
         stub = (
             {"side_effect": raises} if raises else {"return_value": found or []}
         )
-        with patch("tools.civic.geocode_lookup", **stub):
+        # The corrected-query retry calls a model. Tests stay offline, so it is
+        # stubbed to "no correction available" — the deterministic path.
+        async def no_correction(spoken, fallback):
+            return "", "none"
+
+        with patch("tools.civic.geocode_lookup", **stub), patch(
+            "tools.civic.clean_location", no_correction
+        ):
             return asyncio.run(
                 locate_incident(
                     spoken_location=spoken, cleaned_query=cleaned, context=context
@@ -411,6 +418,46 @@ class LocateIncidentTests(unittest.TestCase):
         self.assertEqual(result["status"], "settled_approximate")
         self.assertTrue(result.get("geocoder_unavailable"))
         self.assertTrue(context.memory.get("location_settled"))
+
+    def test_a_misheard_place_gets_a_second_search_after_the_first_fails(self) -> None:
+        # "Kazia bath" is Ghaziabad. The geocoder will never work that out, so
+        # the correction is spent only once a plain search has come back empty.
+        context = confirmed_area("pothole")
+        found = [
+            {
+                "lat": "28.6496701",
+                "lon": "77.339575",
+                "postcode": "201001",
+                "area": "Vaishali",
+                "city": "Ghaziabad",
+                "label": "Sector 4, Vaishali, Ghaziabad",
+                "place_id": 5,
+                "osm_type": "node",
+                "osm_id": 11,
+            }
+        ]
+        calls = []
+
+        async def correction(spoken, fallback):
+            return "Ghaziabad Sector 4", "llm"
+
+        def search(scope, **kwargs):
+            calls.append(scope)
+            return found if "Ghaziabad Sector 4" in scope else []
+
+        from tools.civic import locate_incident
+
+        with patch("tools.civic.geocode_lookup", side_effect=search), patch(
+            "tools.civic.clean_location", correction
+        ):
+            result = asyncio.run(
+                locate_incident(spoken_location="near Kazia bath sector four",
+                                context=context)
+            ).llm_response
+
+        self.assertEqual(result["status"], "choose")
+        self.assertEqual(len(calls), 2, "the plain search must be tried first")
+        self.assertEqual(context.memory.get("location_query_source"), "llm")
 
     def test_a_result_outside_the_confirmed_pincode_is_discarded(self) -> None:
         # The failure that sent a Ghaziabad complaint to Vijayawada.

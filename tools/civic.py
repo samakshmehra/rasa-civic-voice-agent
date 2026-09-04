@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import math
 import os
@@ -24,6 +25,7 @@ from lib.database import (
     Database,
     routing_for,
 )
+from lib.refine import clean_location
 from lib.geocode import (
     TIMEOUT_SECONDS as GEOCODE_TIMEOUT_SECONDS,
     _clean as geocode_clean,
@@ -826,6 +828,52 @@ def _publish_location_status(
     return payload
 
 
+async def _maybe_await(value):
+    """Await *value* when it is awaitable, so send() works either way."""
+    if inspect.isawaitable(value):
+        return await value
+    return value
+
+
+async def _search_scoped(
+    query: str,
+    pincode: str,
+    broad_bbox: list,
+    locality: str,
+    city: str,
+) -> list:
+    """Search inside the confirmed area, keeping only results that belong to it.
+
+    Raises GeocodeUnavailable / TimeoutError to the caller — an unreachable map
+    is handled differently from a map that simply found nothing.
+    """
+    scope = " ".join(part for part in (query, locality, city, pincode) if part)
+    candidates = await asyncio.wait_for(
+        asyncio.to_thread(geocode_lookup, scope, viewbox=broad_bbox, bounded=True),
+        timeout=GEOCODE_TIMEOUT_SECONDS + 1,
+    )
+
+    south, north, west, east = broad_bbox
+    scoped = []
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        try:
+            latitude = float(candidate["lat"])
+            longitude = float(candidate["lon"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not (south <= latitude <= north and west <= longitude <= east):
+            continue
+        candidate_pincode = normalize_pincode(candidate.get("postcode"))
+        if candidate_pincode and candidate_pincode != pincode:
+            continue
+        enriched = dict(candidate)
+        enriched["confirmed_pincode"] = pincode
+        scoped.append(enriched)
+    return scoped
+
+
 async def _locate(
     spoken_location: str,
     cleaned_query: str,
@@ -871,14 +919,21 @@ async def _locate(
 
     spoken = str(spoken_location or "").strip()
     note = _remember_note(context, spoken)
-    # The model may pass a tidied query — it fixes mishearings the geocoder
-    # cannot recover from. When it does not, clean the spoken words ourselves
-    # rather than treating the absence as a verdict about the place.
+    # Speech-to-text mangles proper nouns and the geocoder is a literal
+    # matcher, so something has to sit between them. That call happens here,
+    # inside the tool, rather than being asked of the conversational model —
+    # a tool runs every time, a prompt instruction does not.
+    # The first search uses a plain, instant cleanup. Correcting a mishearing
+    # costs several seconds of model time, so it is spent only once that search
+    # has come back empty — at which point the caller is waiting anyway.
     query = str(cleaned_query or "").strip() or geocode_clean(spoken)
+    query_source = "caller" if cleaned_query else "plain"
     allowance = requirement["attempts_before_approximate"]
 
     if context is not None:
         context.memory.set("precision_required", requirement["requires"])
+        context.memory.set("location_query", query)
+        context.memory.set("location_query_source", query_source)
 
     # Some problems are area-level by nature. Asking a caller to pinpoint stray
     # dogs wastes their time and ours.
@@ -931,21 +986,37 @@ async def _locate(
 
     locality = _memory(context, "locality") or ""
     city = _memory(context, "city") or ""
-    scope = " ".join(part for part in (query, locality, city, pincode) if part)
     try:
-        candidates = await asyncio.wait_for(
-            asyncio.to_thread(geocode_lookup, scope, viewbox=broad_bbox, bounded=True),
-            timeout=GEOCODE_TIMEOUT_SECONDS + 1,
-        )
+        scoped = await _search_scoped(query, pincode, broad_bbox, locality, city)
+        if not scoped and query_source == "plain":
+            # Nothing found on the caller's own words. Before giving up, spend
+            # the model time on a mishearing — "Kazia bath" is Ghaziabad, and
+            # the geocoder will never work that out. Only worth the seconds now
+            # that a plain search has already failed.
+            #
+            # That correction plus a second map call runs to about ten seconds.
+            # On a phone line that is a long silence, so say something first —
+            # a deterministic line, sent immediately, not a turn the model has
+            # to decide to take.
+            sender = getattr(context, "send", None)
+            if callable(sender):
+                await _maybe_await(sender("Let me check that spelling."))
+            corrected, source = await clean_location(spoken, query)
+            if corrected and corrected.lower() != query.lower():
+                query, query_source = corrected, source
+                if context is not None:
+                    context.memory.set("location_query", query)
+                    context.memory.set("location_query_source", query_source)
+                scoped = await _search_scoped(
+                    query, pincode, broad_bbox, locality, city
+                )
     except (GeocodeUnavailable, asyncio.TimeoutError) as exc:
-        # The map being down is our problem, not the caller's.
         if note:
             settled = _settle_approximate(context, note, requirement)
             settled["geocoder_unavailable"] = True
             settled["hint"] = (
                 "The map service is unavailable, so this is logged to the "
-                "locality with their description. Say so plainly and carry on; "
-                "do not invent a landmark and do not stall the complaint."
+                "locality with their description. Say so plainly and carry on."
             )
             return ToolResult(llm_response=settled)
         return ToolResult(
@@ -953,28 +1024,9 @@ async def _locate(
                 "ok": False,
                 "status": "geocoder_unavailable",
                 "detail": str(exc)[:200],
-                "hint": "Ask them to describe the spot in their own words, then call this again.",
+                "hint": "Ask them to describe the spot in their own words.",
             }
         )
-
-    scoped = []
-    south, north, west, east = broad_bbox
-    for candidate in candidates:
-        if not isinstance(candidate, dict):
-            continue
-        try:
-            latitude = float(candidate["lat"])
-            longitude = float(candidate["lon"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if not (south <= latitude <= north and west <= longitude <= east):
-            continue
-        candidate_pincode = normalize_pincode(candidate.get("postcode"))
-        if candidate_pincode and candidate_pincode != pincode:
-            continue
-        enriched = dict(candidate)
-        enriched["confirmed_pincode"] = pincode
-        scoped.append(enriched)
 
     if not scoped:
         attempts += 1
