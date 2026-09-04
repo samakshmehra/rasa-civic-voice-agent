@@ -14,12 +14,12 @@ model_groups:
         # The rephraser only rewords one already-written response line, so the
         # cheapest tier is the right fit.
         model: gpt-5-nano
-        api_key: ${OPENAI_API_KEY}
+        api_key_env: OPENAI_API_KEY
   - id: openai-embeddings
     models:
       - provider: openai
         model: text-embedding-3-large
-        api_key: ${OPENAI_API_KEY}
+        api_key_env: OPENAI_API_KEY
 
 # NOTE: Do not add a classic `action_endpoint` / `actions_module` here.
 # Side effects use Mantle `@tool` functions under tools/, not rasa-sdk actions.

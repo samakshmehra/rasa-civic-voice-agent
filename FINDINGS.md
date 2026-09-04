@@ -661,6 +661,41 @@ What would have saved the time, in order:
 3. `--check project-memory-writes` in the community lint suggests the shape is
    known. Whatever it checks, it did not catch this.
 
+## 23. Config that is parsed and then discarded, with nothing said — MEDIUM
+
+Two of these, both found by the community repository's own lint rather than by
+anything the engine reported.
+
+**`agent.yml` keys nested one level too deep.** `name`, `description`, `rules`
+and `references` are top-level keys. Written inside `agent:` — where `id`,
+`language`, `persona` and `voice` correctly live — they are parsed and thrown
+away. Eight behavioural rules had been inert since the project was written:
+
+```yaml
+agent:
+  persona: |
+    ...
+  rules:                                   # discarded
+    - "If the citizen reports a fire ... tell them to call one one two."
+```
+
+Nothing warns. `rasa train` passes, the agent runs, and the rules simply have
+no effect. The emergency rule above is the one that makes this worth reporting:
+a rule that silently does not exist is worse than no rule, because you stop
+thinking about the case it was meant to cover.
+
+**`api_key: ${VAR}` in a model group never expands.** `api_key` is on the
+engine's own SENSITIVE_DATA list, so the YAML loader returns it raw and the
+provider receives the literal string `${OPENAI_API_KEY}`. The correct form is
+`api_key_env: OPENAI_API_KEY` — the variable's name, unquoted. Training
+succeeded throughout, presumably because the provider fell back to the ambient
+environment, which is exactly what makes it hard to notice.
+
+Both would be caught by a warning at load: "this key is not read here", and
+"this placeholder will not expand". Both are already known well enough to be
+lint rules in the community repository — the checks exist, they are just not in
+the engine where a project author would meet them.
+
 ## Still to test
 
 - [x] Forced submit failure returns `ok: False` and writes no complaint (automated test)
