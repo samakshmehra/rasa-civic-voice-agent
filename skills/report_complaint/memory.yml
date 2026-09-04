@@ -30,3 +30,49 @@ schema:
       type: bool
       description: Whether the summary was read back and confirmed. Gates submit.
       llm_settable: true
+    raw_location:
+      type: text
+    broad_location_query:
+      type: text
+    broad_location_candidates:
+      type: json
+    broad_location_confirmed:
+      type: bool
+    broad_latitude:
+      type: float
+    broad_longitude:
+      type: float
+    broad_bounding_box:
+      type: json
+    broad_osm_place_id:
+      type: text
+    exact_landmark_raw:
+      type: text
+    exact_location_candidates:
+      type: json
+    exact_location_confirmed:
+      type: bool
+    location_settled:
+      type: bool
+    location_precision:
+      type: text
+    location_note:
+      type: text
+    location_summary:
+      type: text
+    location_status:
+      type: text
+    location_ask:
+      type: text
+    location_options:
+      type: text
+    location_query:
+      type: text
+    location_query_source:
+      type: text
+    exact_attempts:
+      type: int
+    location_asks:
+      type: int
+    location_text:
+      type: text

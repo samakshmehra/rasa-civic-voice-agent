@@ -812,6 +812,14 @@ def _settle_approximate(
     }
 
 
+def _options_line(payload: dict) -> str:
+    """Render the map choices as one speakable line for the prompt."""
+    options = payload.get("options") or []
+    return "; ".join(
+        f"{o['option']}) {o.get('place') or o.get('locality') or ''}" for o in options
+    )
+
+
 def _publish_location_status(
     context: Optional[ToolContext], payload: dict
 ) -> dict:
@@ -825,6 +833,7 @@ def _publish_location_status(
     if context is not None:
         context.memory.set("location_status", str(payload.get("status") or ""))
         context.memory.set("location_ask", str(payload.get("ask_about") or ""))
+        context.memory.set("location_options", _options_line(payload))
     return payload
 
 

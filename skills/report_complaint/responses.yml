@@ -31,7 +31,7 @@ responses:
         It is routed to {session.project.authority_name}, in the
         {session.project.department} department, under
         {session.project.ward}. The location is
-        {session.project.location_summary}. The ward officer on record is
+        {session.report_complaint.location_summary}. The ward officer on record is
         {session.project.ward_officer_name}, on
         {session.project.ward_officer_contact}. For this beta demo, the service
         target is

@@ -11,16 +11,6 @@ known_caller:
   type: bool
 recording_notice_played:
   type: bool
-location_text:
-  type: text
-raw_location:
-  type: text
-broad_location_query:
-  type: text
-broad_location_candidates:
-  type: json
-broad_location_confirmed:
-  type: bool
 locality:
   type: text
 area:
@@ -31,42 +21,8 @@ state:
   type: text
 pincode:
   type: text
-broad_latitude:
-  type: float
-broad_longitude:
-  type: float
-broad_bounding_box:
-  type: json
-broad_osm_place_id:
-  type: text
-exact_landmark_raw:
-  type: text
-exact_location_candidates:
-  type: json
-exact_location_confirmed:
-  type: bool
-location_settled:
-  type: bool
-location_precision:
-  type: text
-location_note:
-  type: text
-location_status:
-  type: text
-location_query:
-  type: text
-location_query_source:
-  type: text
-location_ask:
-  type: text
-location_summary:
-  type: text
 precision_required:
   type: text
-exact_attempts:
-  type: int
-location_asks:
-  type: int
 latitude:
   type: float
 longitude:

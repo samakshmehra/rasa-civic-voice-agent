@@ -23,16 +23,16 @@ tool_constraints:
   - record_problem_category:
       on_failure: utter_unsupported_problem
   - confirm_broad_location:
-      requires: session.project.broad_location_candidates
+      requires: session.report_complaint.broad_location_candidates
   - locate_incident:
       requires: >
-        session.project.broad_location_confirmed == True
+        session.report_complaint.broad_location_confirmed == True
         and session.report_complaint.category
   - confirm_incident_location:
-      requires: session.project.exact_location_candidates
+      requires: session.report_complaint.exact_location_candidates
   - find_nearby_complaints:
       requires: >
-        session.project.location_settled == True
+        session.report_complaint.location_settled == True
         and session.report_complaint.description
         and session.project.contact_number
   - attach_to_existing_complaint:
@@ -45,7 +45,7 @@ tool_constraints:
   - route_to_authority:
       requires: >
         session.report_complaint.duplicate_decision == "new"
-        and session.project.location_settled == True
+        and session.report_complaint.location_settled == True
       on_failure: utter_authority_review
   - submit_complaint:
       requires: >
@@ -100,7 +100,7 @@ steps:
       If nothing is found, ask for a better-known locality or their PIN code
       and search again. If the map service is unavailable, say so and offer the
       ward office rather than inventing a place.
-    complete_when: session.project.broad_location_confirmed == True
+    complete_when: session.report_complaint.broad_location_confirmed == True
 
   - id: exact_spot
     collect: spoken_location
@@ -108,18 +108,24 @@ steps:
 
   - id: settle_spot
     instructions: |
-      Recording their words ran the search. Read `location_status`:
+      The search already ran. It came back
+      `@memory.report_complaint.location_status`.
 
-      - `choose` — read the options back briefly and ask which one, then call
-        `confirm_incident_location` with that number. Never pick for them.
-      - `ask_once` — ask one short question about `location_ask`, nothing else,
-        then ask again with `@block.locate` so their reply is recorded. Every
-        reply counts, including "there is nothing nearby" — that is a location
-        answer, not small talk.
-      - `settled_approximate` — done. Say it is logged to the locality using
-        their own description, and do not ask about the location again.
+      If that is `choose`, these are the matches:
+      `@memory.report_complaint.location_options`. Read them back briefly in
+      plain speech, ask which one, then call `confirm_incident_location` with
+      that number. Never pick for them, even when there is only one, and never
+      read a raw map label aloud.
 
-    complete_when: session.project.location_settled == True
+      If it is `ask_once`, ask one short question about
+      `@memory.report_complaint.location_ask` and nothing else. Whatever they
+      reply is a location answer — including "there is nothing nearby" — so
+      record it and the search runs again.
+
+      If it is `settled_approximate`, the location is done. Say it is logged to
+      the locality using their own description, and do not ask again.
+
+    complete_when: session.report_complaint.location_settled == True
 :::
 
 ## The details

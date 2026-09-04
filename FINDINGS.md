@@ -568,12 +568,98 @@ Two things worth recording for anyone else trying this:
   exactly right — a location recorded with nowhere to put it makes the step
   look answered.
 
-What is still not solved is getting the model to write the field at the moment
-the step wants it. It writes `category` reliably through the same mechanism, so
-the difference is something about this step rather than field writes in
-general. Unresolved, and the reason this finding is filed as HIGH: the
-recommended way to build a strict sequence has a step shape that quietly does
-nothing.
+### Clean reproduction
+
+With the memory-scope bug in #22 fixed, the location machinery all works: the
+`collect:` step stores the caller's words, the post-write hook fires, the
+search runs, and the result lands in memory:
+
+```
+report_complaint.location_status   = 'choose'
+report_complaint.location_options  = '1) 100 Feet Road, Indiranagar, Bengaluru; 2) ...'
+report_complaint.location_settled  = None
+```
+
+The step is `complete_when: session.report_complaint.location_settled == True`,
+which is plainly unmet. The model read the options, said "I'm noting the spot
+as near 100 Feet Road", and moved on to the description and then the phone
+number — sections that live *after* the block in the skill body. Two further
+turns did not bring it back.
+
+So `complete_when` on an ordered-block step does not hold the model in the
+step. It marks when a step is done; it does not prevent the conversation
+leaving one that is not. For a block whose entire purpose is that the sequence
+is the requirement, that is the property you are reaching for it to get.
+
+Nothing is logged when this happens. The safety net here is `tool_constraints`
+on everything downstream — `find_nearby_complaints` requires a settled
+location, so the complaint stalls rather than filing without coordinates. That
+is the right failure, but it is a guard we wrote, not one the block provided.
+
+## 22. Project memory is write-once, and a second write fails silently — HIGH
+
+This one explains a week of symptoms, so it is worth stating plainly: a project
+memory field can be written once per session. The second write does nothing. No
+error, no warning, no log line — the tool returns `ok` and the value is simply
+the old one.
+
+It is documented, in one clause of one sentence in `mantle-configuring-agent`:
+
+> Root `memory.yml` is a flat map ... The first write is a tool, a post-write
+> hook, or `seed: true`. **After that the value stays set for the session.**
+
+Read as a note about seeding. It is in fact the central constraint on how you
+may model state.
+
+What it looked like from the outside. `confirm_broad_location` writes nine
+project fields in one loop:
+
+```python
+for field, value in {
+    "locality": locality, "city": city, "state": state, "pincode": pincode,
+    "broad_latitude": lat, "broad_longitude": lon,
+    "broad_bounding_box": bbox, "broad_osm_place_id": ref,
+    "broad_location_confirmed": True,
+}.items():
+    context.memory.set(field, value)
+```
+
+Eight land. The ninth does not, and the ordered-block step gated on it never
+completes. The tool works perfectly when called directly outside the engine.
+Hours went into the difference before the actual rule surfaced.
+
+The reason is that `resolve_broad_location` had already written
+`broad_location_confirmed = False` on the previous turn, to mean "candidates
+offered, nothing chosen yet". That first write consumed the field. Every
+subsequent `True` was discarded.
+
+Everything else that had been mystifying is the same bug:
+
+| Symptom | Cause |
+| --- | --- |
+| An attempt counter stuck at 1 | second increment discarded |
+| A field cleared for re-entry, still holding its old value | clearing is a second write |
+| A corrected location silently keeping the first answer | same |
+
+`_clear_memory_fields`, which this project uses to invalidate downstream state
+when a caller corrects themselves, cannot work at all on project scope.
+
+**The fix is scope, not code.** Anything that changes during a conversation
+belongs in skill memory, which is freely rewritable. Project memory is for
+values that are settled once and then read: the confirmed PIN code, the
+complaint reference, the routed department. Twenty-two fields moved here —
+every flag, counter, candidate list and status — and `broad_location_confirmed`
+began working immediately.
+
+What would have saved the time, in order:
+
+1. A warning when a tool writes a project field that already has a value. It is
+   detectable, it is nearly always a mistake, and it is currently invisible.
+2. Saying this in the memory documentation as a rule about mutability rather
+   than as a clause about seeding — "project fields are write-once; use skill
+   memory for anything that changes" is a different sentence to read.
+3. `--check project-memory-writes` in the community lint suggests the shape is
+   known. Whatever it checks, it did not catch this.
 
 ## Still to test
 
