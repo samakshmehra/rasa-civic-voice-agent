@@ -1,0 +1,27 @@
+# The straightforward path, kept as a regression guard: when the caller names
+# somewhere the map knows, the complaint is pinned to it and said to be pinned.
+scenario:
+  name: Caller names a mapped landmark and the complaint is pinned to it
+
+  simulation_context: >
+    You are reporting a deep pothole that fills with water. It is on 100 Feet
+    Road in Indiranagar, Bengaluru. Answer the agent's questions directly and
+    pick the first option whenever it offers you map choices. Your number is
+    9876543210. If it tells you a similar complaint is already open nearby, say
+    yours is a different pothole further along the road. Confirm the details
+    when read back and stop once you have a complaint number.
+
+  goals:
+    criteria:
+      - The agent asks the caller to choose between map results rather than
+        picking one for them
+      - The agent describes the location as pinned to the landmark, not as
+        logged to the locality
+      - The agent does not read out the reference number of the existing
+        nearby complaint, which is an internal filing number
+    assertions:
+      - slot_was_set:
+          - name: report_complaint.location_precision
+            value: exact_landmark
+      - action_executed: find_nearby_complaints
+      - action_executed: submit_complaint

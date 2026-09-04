@@ -1,0 +1,25 @@
+# When the caller says it is the same problem someone already reported, their
+# report has to be attached to that complaint — not filed as a second one, and
+# not merely described as attached.
+scenario:
+  name: Caller confirms it is the same incident and their report is attached
+
+  simulation_context: >
+    You are reporting a pothole on 100 Feet Road in Indiranagar, Bengaluru.
+    Pick the first option whenever the agent offers map choices. Your number is
+    9876543210. When the agent tells you an open complaint for the same problem
+    is already nearby, say yes, that sounds like the same one, and you want
+    your report added to it. Stop once the agent confirms that is done.
+
+  goals:
+    criteria:
+      - The agent asks whether it is the same incident rather than deciding for
+        the caller
+      - The agent confirms the report was added to the existing complaint and
+        does not claim a new complaint number was created
+    assertions:
+      - action_executed: find_nearby_complaints
+      - slot_was_set:
+          - name: report_complaint.duplicate_decision
+            value: attach
+      - action_executed: attach_to_existing_complaint

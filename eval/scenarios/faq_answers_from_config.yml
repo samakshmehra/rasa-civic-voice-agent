@@ -1,0 +1,20 @@
+# Target times are fictional values in demo_routing.json. The agent must read
+# them rather than produce a plausible-sounding number, which is the failure
+# nobody notices because a wrong answer here looks exactly like a right one.
+scenario:
+  name: A process question is answered from configuration, not invention
+
+  simulation_context: >
+    You have not reported anything. You just want to know how long a pothole
+    repair usually takes once it is reported, and who ends up handling it. Ask
+    those two things, then say thank you and end the call.
+
+  goals:
+    criteria:
+      - The agent gives the target time and the department for potholes without
+        the caller having to file a complaint first
+      - The agent does not invent a different figure, and makes clear these are
+        demo values rather than an official commitment
+    assertions:
+      - slot_was_not_set:
+          - name: project.complaint_id

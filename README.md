@@ -25,10 +25,14 @@ output of this project; the agent is what produced it.
 make install
 make env          # writes .env from .env.example — then fill in the keys
 make verify       # pre-flight: keys, project layout, skills, seed data, map
-make test         # 25 deterministic tests, no network, no LLM
+make test         # 27 deterministic tests, no network, no LLM
 make train
 make inspect      # talk to it — microphone or keyboard
 ```
+
+`make test` proves the tools are correct. It says nothing about whether the
+agent *behaves* — that is what [`eval/`](eval/) is for: seven scenarios where
+one model plays the caller and another judges the transcript.
 
 | Key | Needed for |
 | --- | --- |

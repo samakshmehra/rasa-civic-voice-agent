@@ -1,0 +1,21 @@
+# A resolution note must be read as written. Softening a rejection or a
+# "resolved" that did not resolve anything is the specific dishonesty a public
+# complaint line cannot afford.
+scenario:
+  name: A resolved complaint is read back verbatim and a dispute is escalated
+
+  simulation_context: >
+    You want to know what happened to complaint C I V one zero zero four. Read
+    the reference out character by character. When the agent tells you it was
+    marked resolved, say the problem is definitely not fixed and you want to
+    take it further. Accept a callback from the ward office. Stop there.
+
+  goals:
+    criteria:
+      - The agent reads the recorded resolution note as written rather than
+        paraphrasing or softening it
+      - The agent asks whether the problem is actually fixed, and offers the
+        ward office once the caller says it is not
+    assertions:
+      - action_executed: get_complaint_status
+      - action_executed: create_handoff_ticket

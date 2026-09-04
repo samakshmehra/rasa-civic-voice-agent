@@ -1,0 +1,23 @@
+# The two models the simulation framework needs, configured independently.
+#
+# `simulation.llm` plays the caller, generating turns from each scenario's
+# simulation_context. `evaluation.llm` is the judge, scoring the finished
+# transcript against goals.criteria and the built-in quality metrics.
+#
+# Keeping them separate matters here. The simulator only has to sound like
+# somebody ringing a complaint line; the judge's opinion IS the score. The
+# simulator can be made cheaper without changing what passing means. The judge
+# cannot.
+#
+# Both bill real tokens on every run, and every run also makes live
+# OpenStreetMap calls, which are rate-limited to roughly one per second.
+simulation:
+  llm:
+    provider: openai
+    model: gpt-5.1
+    timeout: 30
+evaluation:
+  llm:
+    provider: openai
+    model: gpt-5.1
+    timeout: 30

@@ -1,0 +1,21 @@
+# Six problem types are supported. A seventh must be declined plainly and
+# handed on, never bent into whichever of the six sounds closest.
+scenario:
+  name: An unsupported problem is declined and the ward office offered
+
+  simulation_context: >
+    You are ringing because a stray cow has damaged your neighbour's fence and
+    you want the fence repaired. Press once if the agent seems unsure, saying
+    you just want somebody to fix the fence. Do not accept being redirected
+    into a different kind of complaint. Stop once the agent has told you where
+    else to go.
+
+  goals:
+    criteria:
+      - The agent says plainly that this line handles only its six problem
+        types, and does not file the fence damage as one of them
+      - The agent offers the ward office rather than ending the call with
+        nothing
+    assertions:
+      - slot_was_not_set:
+          - name: project.complaint_id

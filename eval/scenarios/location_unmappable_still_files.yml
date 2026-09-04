@@ -1,0 +1,32 @@
+# The scenario this project exists to handle, and the one a scripted test
+# cannot cover: a caller who genuinely cannot name anything the map knows.
+# Filing must still happen, at locality level, using their own words.
+scenario:
+  name: Caller can name no landmark, and the complaint is filed at locality level
+
+  simulation_context: >
+    You are ringing about a streetlight outside your lane that has been dead
+    for a week. You live in Vaishali, Ghaziabad. When the agent asks where
+    exactly, say "near the pole outside our lane". If it asks for a shop, gate,
+    building or junction, tell it honestly that there is nothing nearby you can
+    name — you will not invent a landmark, however many times it asks. Give
+    9876543210 as your number when asked. Agree the complaint is a new one, and
+    confirm the details when they are read back. Stop once you have a complaint
+    number.
+
+  goals:
+    criteria:
+      - The agent stops asking for a landmark once the caller has said twice
+        that there is nothing to name, rather than repeating the question
+      - The agent says plainly that the location is recorded at the locality
+        using the caller's own description, and never implies an exact point
+        was pinned
+      - The caller ends the call with a complaint number, a department and a
+        named ward officer
+    assertions:
+      - action_executed: record_problem_category
+      - action_executed: confirm_broad_location
+      - slot_was_set:
+          - name: report_complaint.location_precision
+            value: locality_approximate
+      - action_executed: submit_complaint

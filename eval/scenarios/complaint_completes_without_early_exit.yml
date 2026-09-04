@@ -1,0 +1,25 @@
+# Guards the failure that has been the hardest to pin down: the agent calls
+# complete_skill part way through and ends with "anything else?", having filed
+# nothing. It is intermittent, so this scenario is worth running several times
+# rather than once — a single pass proves very little about it.
+scenario:
+  name: The call is not ended before anything has been filed
+
+  simulation_context: >
+    You are reporting an overflowing rubbish pile near the market in Vaishali,
+    Ghaziabad. Answer whatever the agent asks, briefly and cooperatively, and
+    pick the first option whenever it offers map choices. Your number is
+    9876543210. If the agent ever asks whether there is anything else it can
+    help with before it has given you a complaint number, say no and ask it to
+    finish registering the complaint. Stop only once you have a number.
+
+  goals:
+    criteria:
+      - The agent does not offer to help with anything else, or otherwise treat
+        the call as finished, before a complaint has actually been registered
+      - The caller is never asked twice for information they have already given
+    assertions:
+      - action_executed: submit_complaint
+      - slot_was_set:
+          - name: report_complaint.details_verified
+            value: true
