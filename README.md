@@ -82,17 +82,32 @@ not about pinning a map marker; it decides the ward, the zone, the officer and
 the department. It also produces a bounding box, which becomes the safety net
 for everything after it.
 
-**Stage two — where inside it.** One tool call per caller turn:
+**Stage two — where inside it.** The engine asks the question and stores the
+answer, and storing it runs everything else:
 
 ```
-                   locate_incident(spoken_location, cleaned_query)
-                                    │
-          ┌─────────────────────────┼─────────────────────────┐
-          ▼                         ▼                         ▼
-       choose                   ask_once            settled_approximate
- map found candidates     one specific question      locality + their own
- → caller picks           → call again with           words, filed as
- → precision: exact         their reply                precision: approximate
+      collect: spoken_location          engine asks, engine stores
+                  │
+        run_after_setting hook          fires on the write
+                  │
+       ┌──────────┴──────────┐
+       │  plain cleanup       │  ~1s
+       │  → search the map    │
+       │         │            │
+       │     found? ──yes─────┼──► choose
+       │         no           │
+       │  "Let me check that" │  ← said immediately
+       │  model fixes the name│  ~6s
+       │  → search again      │
+       └──────────┬───────────┘
+                  │
+     ┌────────────┼────────────┐
+     ▼            ▼            ▼
+  choose      ask_once   settled_approximate
+ map found   one question  locality + their
+ → caller     → collect      own words
+   picks        again
+ exact                     approximate
 ```
 
 Both endings file a complaint. A field officer handed *"behind the Supertech
@@ -131,14 +146,29 @@ calling anything, or asking again without calling anything.
 
 None of those judgements ever needed a model. How precise a department needs to
 be, whether the effort budget is spent, when to stop asking — all knowable from
-configuration and state. So they moved into the tool, and what is left for the
-model is the one thing only it can do: **turn spoken words into a searchable
-phrase.**
+configuration and state.
 
-```
-model  →  "Kazia bath sector four"  becomes  "Sector 4, Ghaziabad"
-tool   →  everything else
-```
+The rule that came out of it: **anything the model has to *do* rather than
+*say* belongs in a tool.** A tool runs when the step runs; an instruction is a
+request. So the model is asked for nothing here — the engine collects the
+caller's words, and the search hangs off that write.
+
+Correcting a mishearing still wants a model, because "Kazia bath" is Ghaziabad
+and no geocoder will ever work that out. That call moved *inside* the tool,
+where it cannot be skipped, and it runs only on the retry — measured, because
+the accuracy needs reasoning and the reasoning costs time:
+
+| | latency | "near Kazia bath sector four" |
+| --- | --- | --- |
+| minimal reasoning | 1.4s | "Kasia Bath Sector Four" |
+| medium reasoning | 5.8s | **"Ghaziabad Sector 4"** |
+
+Six seconds on every location is unacceptable and wasted whenever the caller
+named somewhere the map already knows. So the first search is instant and the
+model time is spent only once that has come back empty — at which point the
+caller is waiting on a failure anyway. Two guards throw the correction away if
+it shares no word stem with what was said, or runs long enough to be an
+explanation rather than a name.
 
 If the model materially changes a place name, it has to say so out loud before
 searching. Silently "correcting" a locality routes the complaint to the wrong
@@ -247,13 +277,16 @@ File a complaint through to the end and the agent should speak
 | `endpoints.yml` | response rephraser and model groups |
 | `memory.yml` | project-wide memory (`session.project.*`) |
 | `skills/` | one folder per skill |
-| `tools/civic.py` | the 14 tools |
+| `tools/civic.py` | the shared tools |
+| `lib/refine.py` | the mishearing correction, called by the tool |
+| `skills/report_complaint/tools.py` | the post-write hook that runs the search |
 | `lib/authority.py` | fictional routing, wards, precision rules |
 | `lib/database.py` | SQLite demo backend |
 | `lib/geocode.py` | OpenStreetMap lookup, no API key |
 | `data/source/` | seed data and the routing config |
 | `scripts/verify_setup.py` | pre-flight diagnostics |
-| `tests/test_civic.py` | 25 tests — routing, precision, location, database |
+| `tests/test_civic.py` | 27 tests — routing, precision, location, database |
+| `eval/` | 7 simulation scenarios — does it *behave* |
 
 A Rasa Skills project: no `config.yml`, no `domain.yml`, no flow YAMLs.
 Pinned to `rasa-pro==3.19.0.dev3`.
@@ -262,13 +295,23 @@ Pinned to `rasa-pro==3.19.0.dev3`.
 
 ## Known rough edges
 
-**The model can end a call early.** `complete_skill` is engine-provided and
-cannot be gated — `tool_constraints` only resolves your own tools. The model
-ends the complaint partway through, usually just after the callback number,
-with "is there anything else?" and nothing filed. This is intermittent rather
-than rare: it happened on both attempts at recording a demo call. The happy
-path does complete — the transcripts in this README are real — but not
-dependably. Written up as finding #19.
+**An ordered-block step does not hold the model in it.** `complete_when` marks
+when a step is finished; it does not stop the conversation leaving one that is
+not. With the search done and its result in memory
+(`location_status = choose`, `location_settled` unset), the model has read the
+options aloud, said "noting the spot", and walked on into the description and
+phone-number sections that follow the block. Nothing is logged when it happens.
+
+Downstream `tool_constraints` catch it — nothing can be filed without a settled
+location, so the call stalls rather than recording a complaint with no
+coordinates. That is the right failure, but it is a guard written here rather
+than one the block provided. Finding #21.
+
+**The model can also end a call early**, calling `complete_skill` part way
+through with nothing filed. A skill-level `complete_when` now guards it;
+whether that holds in every case is not yet established, which is what
+`eval/scenarios/complaint_completes_without_early_exit.yml` exists to measure.
+Finding #19.
 
 **Skill selection varies by model.** On two models tested, a broadly-described
 sub-skill was activated mid-complaint, bypassing the constrained flow entirely.
@@ -278,9 +321,21 @@ That skill has been removed rather than guarded — finding #18.
 `CIVIC_PROJECT_ROOT`. A missing seed directory now fails loudly instead of
 quietly creating an empty municipal system — finding #1.
 
+**Project memory is write-once.** Not a rough edge of this project so much as
+the rule that shaped it: a project field can be written once per session and
+the second write is silently discarded. Everything that changes during a call —
+flags, counters, candidate lists, the location status — lives in skill memory
+for that reason. Finding #22, and the one worth reading if you are building
+your own.
+
 **OpenStreetMap coverage is uneven** and calls can fail. Lookup runs off the
 async loop, the caller always picks from candidates, and an unreachable map
 settles the location at locality level rather than blocking the complaint.
+
+**Correcting a misheard place adds about ten seconds** to the turn where it
+happens — a plain search, then a model call, then a second search. The tool
+speaks a holding line first, but this has not been heard over the voice channel
+yet, only read.
 
 ---
 
