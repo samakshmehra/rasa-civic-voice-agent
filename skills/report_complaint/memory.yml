@@ -5,17 +5,6 @@ schema:
       enum_values: [pothole, water_supply, garbage, streetlight, drainage, stray_animals]
     spoken_location:
       type: text
-      description: >
-        Where the caller says the problem is, in their own words, exactly as
-        they said it. Writing this runs the location search.
-      llm_settable: true
-    cleaned_query:
-      type: text
-      description: >
-        The same place tidied into something a map could find — mishearings
-        fixed, abbreviations expanded, filler dropped. Empty when they have not
-        named somewhere a map could hold, such as "outside our lane".
-      llm_settable: true
     description:
       type: text
       description: The citizen's description of the problem in their own words.

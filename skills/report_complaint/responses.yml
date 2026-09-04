@@ -1,4 +1,9 @@
 responses:
+  utter_ask_exact_spot:
+    - text: >
+        Where exactly is it? A nearby shop, gate, building or junction is
+        enough — or just describe the spot in your own words.
+
   utter_unsupported_problem:
     - text: >
         This demo line only handles potholes, water supply, garbage, street

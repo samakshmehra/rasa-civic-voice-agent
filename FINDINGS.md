@@ -458,13 +458,26 @@ right up to the moment the model decides the conversation is over — and at tha
 point the only available control is a sentence in the prompt, which is exactly
 what the levers exist to replace.
 
-What would help, roughly in order of usefulness:
+**Correction.** A skill-level `complete_when` does exist — it is in the
+frontmatter field list in the bundled `mantle-building-skills` docs, alongside
+`requires`, `import_tools`, `tool_constraints`, `utter` and `disabled`. This
+finding originally said it did not, which was wrong; the field is simply absent
+from every shipped example, so nothing demonstrates it. Adding
 
-1. `tool_constraints` accepting engine tools, so `complete_skill` can require
-   the same state that `submit_complaint` requires.
-2. A skill-level `complete_when`, mirroring the one on ordered-block steps.
-3. At minimum, a logged warning when `complete_skill` fires while an ordered
-   block still has unfinished steps — the run above produced no such signal.
+```yaml
+complete_when: >
+  session.project.complaint_id
+  or session.report_complaint.duplicate_decision == "attach"
+```
+
+is accepted at train time and is the right answer to this finding.
+
+What still stands:
+
+1. `tool_constraints` cannot gate engine tools, so `complete_skill` has no
+   per-tool guard even though every tool you write does.
+2. Nothing is logged when `complete_skill` fires while an ordered block still
+   has unfinished steps — the runs above produced no signal at all.
 
 ## 20. `set_` is a reserved tool-name prefix, and the resulting error points somewhere else — LOW
 

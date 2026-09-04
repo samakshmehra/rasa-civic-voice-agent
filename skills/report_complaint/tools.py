@@ -28,24 +28,12 @@ async def run_after_setting_spoken_location(context: ToolContext = None) -> Tool
     what was just written.
     """
     spoken = _memory(context, "spoken_location") or ""
-    cleaned = _memory(context, "cleaned_query") or ""
-    result = await _locate(spoken, cleaned, context)
+    result = await _locate(spoken, "", context)
     payload = _publish_location_status(context, result.llm_response)
     status = str(payload.get("status") or "")
 
-    # Rejecting rolls the write back, which is right for exactly one case: the
-    # caller described a spot before there was any confirmed area to place it
-    # in. Leaving that value sitting in memory makes the location look
-    # answered, and the model moves on without ever locating anything.
-    if status in {"need_area_first", "category_not_set"}:
-        return ToolResult(
-            llm_response={
-                "ok": False,
-                "error": payload.get("hint") or "Confirm the area first.",
-                "status": status,
-            }
-        )
-
-    # Every other outcome stands, including "the map found nothing" — that is a
-    # legitimate consequence of them having spoken, not a bad write.
+    # Never reject. A rejection rolls back a snapshot of accessible memory,
+    # not just this field, and the ordered block already guarantees the area is
+    # confirmed before this step runs. Every outcome here — including "the map
+    # found nothing" — is a legitimate consequence of the caller speaking.
     return ToolResult(llm_response={"ok": True, "status": status})

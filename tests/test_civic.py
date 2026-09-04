@@ -283,14 +283,19 @@ def confirmed_area(category, **overrides):
 class LocateIncidentTests(unittest.TestCase):
     """The location flow, driven exactly as the agent drives it."""
 
-    def call(self, context, spoken="", cleaned=""):
+    def call(self, context, spoken="", cleaned="", found=None, raises=None):
+        """Drive the tool with the map returning `found`, or raising `raises`."""
         from tools.civic import locate_incident
 
-        return asyncio.run(
-            locate_incident(
-                spoken_location=spoken, cleaned_query=cleaned, context=context
-            )
-        ).llm_response
+        stub = (
+            {"side_effect": raises} if raises else {"return_value": found or []}
+        )
+        with patch("tools.civic.geocode_lookup", **stub):
+            return asyncio.run(
+                locate_incident(
+                    spoken_location=spoken, cleaned_query=cleaned, context=context
+                )
+            ).llm_response
 
     def test_area_level_problems_settle_without_any_questions(self) -> None:
         # Stray dogs move. Asking which gate they are near wastes the call.
@@ -343,10 +348,7 @@ class LocateIncidentTests(unittest.TestCase):
     def test_the_description_survives_a_search_attempt(self) -> None:
         # A new map search must not wipe what the caller said about the spot.
         context = confirmed_area("streetlight")
-        with patch("tools.civic.geocode_lookup", return_value=[]):
-            self.call(
-                context, spoken="near the pole outside our lane", cleaned="pole"
-            )
+        self.call(context, spoken="near the pole outside our lane", cleaned="pole")
         self.call(context, spoken="there is nothing nearby at all")
 
         self.assertIn(
@@ -390,10 +392,10 @@ class LocateIncidentTests(unittest.TestCase):
                 "osm_id": 7,
             }
         ]
-        with patch("tools.civic.geocode_lookup", return_value=match):
-            result = self.call(
-                context, spoken="near vaishali metro", cleaned="Vaishali Metro Station"
-            )
+        result = self.call(
+            context, spoken="near vaishali metro", cleaned="Vaishali Metro Station",
+            found=match,
+        )
 
         self.assertEqual(result["status"], "choose")
         self.assertEqual(result["option_count"], 1)
@@ -401,12 +403,10 @@ class LocateIncidentTests(unittest.TestCase):
 
     def test_an_unreachable_map_does_not_stop_the_complaint(self) -> None:
         context = confirmed_area("pothole")
-        with patch(
-            "tools.civic.geocode_lookup", side_effect=geocode.GeocodeUnavailable("down")
-        ):
-            result = self.call(
-                context, spoken="near the big gate", cleaned="big gate"
-            )
+        result = self.call(
+            context, spoken="near the big gate", cleaned="big gate",
+            raises=geocode.GeocodeUnavailable("down"),
+        )
 
         self.assertEqual(result["status"], "settled_approximate")
         self.assertTrue(result.get("geocoder_unavailable"))
@@ -428,8 +428,8 @@ class LocateIncidentTests(unittest.TestCase):
                 "osm_id": 9,
             }
         ]
-        with patch("tools.civic.geocode_lookup", return_value=far_away):
-            result = self.call(context, spoken="the pole", cleaned="electric pole")
+        result = self.call(context, spoken="the pole", cleaned="electric pole",
+                           found=far_away)
 
         self.assertNotEqual(result.get("status"), "choose")
         self.assertIsNone(context.memory.get("latitude"))

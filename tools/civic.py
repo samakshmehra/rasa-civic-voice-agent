@@ -26,6 +26,7 @@ from lib.database import (
 )
 from lib.geocode import (
     TIMEOUT_SECONDS as GEOCODE_TIMEOUT_SECONDS,
+    _clean as geocode_clean,
     GeocodeUnavailable,
     lookup as geocode_lookup,
     normalize_indian_pincode,
@@ -869,8 +870,11 @@ async def _locate(
         )
 
     spoken = str(spoken_location or "").strip()
-    query = str(cleaned_query or "").strip()
-    note = _remember_note(context, spoken) or query
+    note = _remember_note(context, spoken)
+    # The model may pass a tidied query — it fixes mishearings the geocoder
+    # cannot recover from. When it does not, clean the spoken words ourselves
+    # rather than treating the absence as a verdict about the place.
+    query = str(cleaned_query or "").strip() or geocode_clean(spoken)
     allowance = requirement["attempts_before_approximate"]
 
     if context is not None:
@@ -878,29 +882,15 @@ async def _locate(
 
     # Some problems are area-level by nature. Asking a caller to pinpoint stray
     # dogs wastes their time and ours.
-    if requirement["requires"] == "area":
-        if not note:
-            return ToolResult(
-                llm_response={
-                    "ok": True,
-                    "status": "ask_once",
-                    "ask_about": "roughly where in the area the problem is",
-                    "hint": "Ask once, then call this again with their answer.",
-                }
-            )
+    if requirement["requires"] == "area" and note:
         return ToolResult(llm_response=_settle_approximate(context, note, requirement))
 
     attempts = _attempts(context)
     asks = _asks(context)
-    # One effort budget, spent by anything that costs the caller a turn: a map
-    # search that found nothing, or a question that produced nothing mappable.
-    # Tracking them separately made the budget too slow to bite — the caller
-    # answered "there is nothing nearby" and was asked again anyway, which is
-    # exactly the loop this is meant to prevent.
+    # One effort budget, spent by anything that costs the caller a turn.
     exhausted = attempts + asks >= allowance
 
     if not query:
-        # Nothing mappable was named. Ask, unless we have already asked enough.
         if exhausted and note:
             return ToolResult(
                 llm_response=_settle_approximate(context, note, requirement)
@@ -914,14 +904,6 @@ async def _locate(
                 "status": "ask_once",
                 "ask_about": requirement["ask_for"],
                 "why": requirement["reason"],
-                "questions_asked": asks,
-                "hint": (
-                    "Ask one short question for exactly this, nothing else. "
-                    "Then call this tool again with whatever they say next — "
-                    "including an answer like 'there is nothing nearby', which "
-                    "is a location answer, not small talk. Only this tool can "
-                    "settle the location; saying it is filed does not file it."
-                ),
             }
         )
 
