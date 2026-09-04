@@ -1,4 +1,4 @@
-# Platform endpoints for the Civico Skills (calm_v2) agent.
+# Platform endpoints for the Civico Skills (Mantle) agent.
 #
 # LLM routing and Inspector Deepgram ASR/TTS live in integrations.yml.
 
@@ -22,4 +22,4 @@ model_groups:
         api_key: ${OPENAI_API_KEY}
 
 # NOTE: Do not add a classic `action_endpoint` / `actions_module` here.
-# Side effects use calm_v2 `@tool` functions under tools/, not rasa-sdk actions.
+# Side effects use Mantle `@tool` functions under tools/, not rasa-sdk actions.

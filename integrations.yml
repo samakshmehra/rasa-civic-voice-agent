@@ -1,15 +1,22 @@
 # External integrations for the Civico voice civic agent.
 
+# The orchestrator LLM is a model-group reference. Provider, model and
+# credentials live on the named group — the inline form was removed in
+# rasa-pro 3.20.0.dev6.
+#
+# gpt-5.4-mini rather than a larger model: this project leaves the model very
+# little room to be clever. tool_constraints, complete_when and the location
+# tool already decide what may happen next, so raw model strength buys less
+# here than it would in a loosely-specified agent, at several times the cost.
 llm:
-  provider: openai
-  # gpt-5-mini rather than the full model: this skill leaves the model very
-  # little room to be clever. tool_constraints, complete_when and
-  # assess_location already decide what may happen next, so raw model strength
-  # buys less here than it would in a loosely-specified agent — at ~3.5x the
-  # cost. If quality holds, that is itself worth reporting back to Rasa.
-  # No temperature: the GPT-5 family rejects a non-default value.
-  model: gpt-5.4-mini
-  api_key_env: OPENAI_API_KEY
+  model_group: orchestrator
+
+model_groups:
+  - id: orchestrator
+    models:
+      - provider: openai
+        model: gpt-5.4-mini
+        api_key_env: OPENAI_API_KEY
 
 channels:
   rest:

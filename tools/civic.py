@@ -11,8 +11,8 @@ import sqlite3
 from datetime import date
 from typing import Any, Optional
 
-from rasa.calm_v2.tools.decorator import ToolContext, tool
-from rasa.calm_v2.tools.result import ToolResult
+from rasa.mantle.tools.decorator import ToolContext, tool
+from rasa.mantle.tools.result import ToolResult
 
 from lib.authority import (
     DemoRoutingError,

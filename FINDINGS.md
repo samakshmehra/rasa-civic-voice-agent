@@ -2,7 +2,9 @@
 
 Running log for the Rasa Heroes feedback form.
 
-Environment: `rasa-pro==3.19.0.dev3`, Python 3.12, macOS 15.5, OpenAI `gpt-5-mini`
+Environment: `rasa-pro==3.20.0.dev6` (findings 1-20 were observed on
+`3.19.0.dev3`, where the engine module was `calm_v2` rather than `mantle`;
+log lines below are quoted as they were emitted). Earlier: `rasa-pro==3.19.0.dev3`, Python 3.12, macOS 15.5, OpenAI `gpt-5-mini`
 (skill routing) and `gpt-5-nano` (response rephraser), Deepgram Flux/Aura,
 text channel via REST. Earlier findings were observed on `gpt-5.2`.
 
@@ -489,6 +491,49 @@ error name the actual cause rather than telling you to add a function that
 already exists, and have the warning say which prefixes are reserved.
 
 Renaming to `record_problem_category` fixed it immediately.
+
+## 21. Migrating 3.19.0.dev3 → 3.20.0.dev6: three breaking changes, and a flow that stopped working — MEDIUM
+
+The mechanical part was quick, and each error message named its own cause:
+
+1. `rasa.calm_v2.*` is now `rasa.mantle.*`. Tool imports fail with
+   `No module named 'rasa.calm_v2'`.
+2. The inline `llm:` block in `integrations.yml` is gone. `provider`, `model`
+   and `api_key_env` are no longer permitted there; `llm:` takes a
+   `model_group:` reference and the provider details move onto the group.
+3. Project memory fields may no longer declare `llm_settable: true` —
+   "Project fields cannot be written by the LLM." Three fields here had it,
+   all of them written by tools anyway, so the flag had been describing
+   something that never happened.
+
+Those three took under an hour. What did not survive the move is the behaviour.
+
+On `3.19.0.dev3` the same project reliably ran `record_problem_category` →
+`resolve_broad_location` → `confirm_broad_location` → `locate_incident`, and
+`locate_incident` would settle the location one way or the other. On
+`3.20.0.dev6`, with an unchanged skill file and an unchanged ordered block, the
+first three still run and the fourth never does. The model answers the caller
+in prose instead:
+
+```
+caller │ near Galaxy Picture Hall
+Civico │ Got it. Is that the exact spot, or should I file it as the lane
+       │ near Galaxy Picture Hall?
+caller │ there is nothing else nearby, just the pole
+Civico │ Understood. I've got the location as near Galaxy Picture Hall,
+       │ and I'll file it there.
+```
+
+Nothing was filed; `location_settled` is unset. The tool's own constraint —
+`requires: session.project.broad_location_confirmed == True and
+session.report_complaint.category` — was satisfied at that point, and the
+`:::ordered_block` syntax is unchanged from the 3.20 examples. The step's
+`complete_when` did not hold the model in the step.
+
+Not yet diagnosed, and worth separating from the migration itself: the three
+errors above are ordinary deprecations with good messages. This is a
+behavioural change with no diagnostic at all, which is the harder kind to
+notice — the agent sounds like it is working.
 
 ## Still to test
 

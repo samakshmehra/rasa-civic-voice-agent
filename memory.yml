@@ -1,25 +1,16 @@
-# Project-wide memory shared across skills (session.project.*)
+# Project-wide memory shared across skills (session.project.*).
+# Every field here is written by a tool — project fields cannot be llm_settable
+# in rasa-pro 3.20, and a description belongs only on a field the LLM may set.
 citizen_name:
   type: text
-  description: >
-    Name of the caller, only if they choose to give one. Nothing is assumed —
-    a civic line has no accounts, so the agent starts knowing nobody.
-  llm_settable: true
 contact_number:
   type: text
-  description: Phone number the department can call back on. Asked, never assumed.
-  llm_settable: true
 citizen_id:
   type: text
 known_caller:
   type: bool
-  description: True when the number given matches someone already in the system.
 recording_notice_played:
   type: bool
-  description: >
-    True once the recording notice has been given this call. Gates the notice
-    so it plays once per call, not once per skill (re)activation.
-  llm_settable: true
 location_text:
   type: text
 raw_location:
@@ -76,7 +67,6 @@ osm_place_id:
   type: text
 complaint_id:
   type: text
-  description: Complaint reference being filed or tracked.
 spoken_complaint_id:
   type: text
 department:
