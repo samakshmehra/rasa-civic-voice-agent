@@ -809,19 +809,26 @@ def _settle_approximate(
     }
 
 
-@tool(
-    description=(
-        "Work out where inside the confirmed area the problem is. Call this "
-        "once each time the caller says something about the location, passing "
-        "their exact words and your cleaned-up version of them. It searches the "
-        "map, decides whether the result is precise enough for this kind of "
-        "problem, and settles the location itself when the map cannot help."
-    )
-)
-async def locate_incident(
-    spoken_location: str = "",
-    cleaned_query: str = "",
-    context: ToolContext = None,
+def _publish_location_status(
+    context: Optional[ToolContext], payload: dict
+) -> dict:
+    """Mirror the outcome into memory so the skill can branch on it.
+
+    The post-write hook is engine-invoked rather than part of an LLM exchange,
+    so its return value is not something the skill can rely on reading. Writing
+    the status and the pending question into memory means the prose can react
+    to them the same way it reacts to any other state.
+    """
+    if context is not None:
+        context.memory.set("location_status", str(payload.get("status") or ""))
+        context.memory.set("location_ask", str(payload.get("ask_about") or ""))
+    return payload
+
+
+async def _locate(
+    spoken_location: str,
+    cleaned_query: str,
+    context: Optional[ToolContext],
 ) -> ToolResult:
     """Resolve the incident spot, or settle it at locality level trying.
 
@@ -1040,6 +1047,26 @@ async def locate_incident(
             ),
         }
     )
+
+
+
+
+@tool(
+    description=(
+        "Work out where inside the confirmed area the problem is. Prefer "
+        "setting spoken_location, which runs this automatically; call it "
+        "directly only if that write was rejected."
+    )
+)
+async def locate_incident(
+    spoken_location: str = "",
+    cleaned_query: str = "",
+    context: ToolContext = None,
+) -> ToolResult:
+    """Direct entry point. The post-write hook is the normal path."""
+    result = await _locate(spoken_location, cleaned_query, context)
+    _publish_location_status(context, result.llm_response)
+    return result
 
 
 @tool(

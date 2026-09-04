@@ -143,29 +143,26 @@ steps:
     instructions: |
       Ask where inside the confirmed area the problem is.
 
-      Every time they say something about the location, call `locate_incident`
-      with two things: `spoken_location`, their words exactly as they said
-      them, and `cleaned_query`, the same thing tidied into something a map
-      could find — fix an obvious mishearing, expand a clear abbreviation, drop
-      filler. Leave `cleaned_query` empty when they have not named a place a
-      map could hold, such as "outside our lane".
+      Set `cleaned_query` to what they named, tidied so a map could find it —
+      mishearing fixed, abbreviation expanded, filler dropped. Set it to an
+      empty string if they named nowhere a map could hold, like "outside our
+      lane".
 
-      The tool searches, counts and decides. Follow its `status`:
+      Set `spoken_location` to their words exactly as they said them. Set it
+      last, and set it again for every reply they give about the location,
+      including "there is nothing nearby" — that is a location answer.
+
+      Setting it runs the search. Then read `location_status`:
 
       - `choose` — read the options back briefly in plain speech, ask which one,
-        then call `confirm_incident_location` with that number. Never pick for
-        them, even with one result, and never read a raw map label aloud.
-      - `ask_once` — ask one short question about `ask_about` and nothing else,
-        then call `locate_incident` again with their reply. Call it for every
-        reply, including "there is nothing nearby" or "I cannot describe it" —
-        those are location answers and the tool needs them. Saying the location
-        is filed does not file it; only the tool can settle it.
-      - `settled_approximate` — the location is done. Say plainly that it is
-        logged to the locality using their own description, and move on. Do not
-        ask about the location again.
+        then call `@tool.confirm_incident_location` with that number. Never pick
+        for them, even with one result, and never read a raw map label aloud.
+      - `ask_once` — ask one short question about `location_ask`, nothing else.
+      - `settled_approximate` — done. Say it is logged to the locality using
+        their own description, and move on without asking again.
 
-      Never invent a landmark, never widen the search beyond the confirmed
-      area, and never say the location is settled before the tool says so.
+      Never invent a landmark and never widen the search beyond the confirmed
+      area.
     complete_when: session.project.location_settled == True and session.project.latitude and session.project.longitude
 
   - id: collect_description

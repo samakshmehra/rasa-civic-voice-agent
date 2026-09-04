@@ -51,6 +51,10 @@ location_precision:
   type: text
 location_note:
   type: text
+location_status:
+  type: text
+location_ask:
+  type: text
 location_summary:
   type: text
 precision_required:

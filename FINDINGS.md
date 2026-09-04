@@ -492,48 +492,75 @@ already exists, and have the warning say which prefixes are reserved.
 
 Renaming to `record_problem_category` fixed it immediately.
 
-## 21. Migrating 3.19.0.dev3 → 3.20.0.dev6: three breaking changes, and a flow that stopped working — MEDIUM
+## 21. On 3.20, an ordered-block step cannot rely on the model calling a tool — HIGH
 
-The mechanical part was quick, and each error message named its own cause:
+The migration itself was straightforward. Three breaking changes, each with an
+error message that named its own cause:
 
-1. `rasa.calm_v2.*` is now `rasa.mantle.*`. Tool imports fail with
-   `No module named 'rasa.calm_v2'`.
-2. The inline `llm:` block in `integrations.yml` is gone. `provider`, `model`
-   and `api_key_env` are no longer permitted there; `llm:` takes a
+1. `rasa.calm_v2.*` is now `rasa.mantle.*`.
+2. The inline `llm:` block in `integrations.yml` is gone — `llm:` takes a
    `model_group:` reference and the provider details move onto the group.
-3. Project memory fields may no longer declare `llm_settable: true` —
-   "Project fields cannot be written by the LLM." Three fields here had it,
-   all of them written by tools anyway, so the flag had been describing
-   something that never happened.
+3. Project memory fields may no longer declare `llm_settable: true`.
 
-Those three took under an hour. What did not survive the move is the behaviour.
+Under an hour, and `verify`, 26 tests and `train` all pass on the new pin.
 
-On `3.19.0.dev3` the same project reliably ran `record_problem_category` →
-`resolve_broad_location` → `confirm_broad_location` → `locate_incident`, and
-`locate_incident` would settle the location one way or the other. On
-`3.20.0.dev6`, with an unchanged skill file and an unchanged ordered block, the
-first three still run and the fourth never does. The model answers the caller
-in prose instead:
+What did not survive is the behaviour. With an unchanged skill file and an
+unchanged ordered block, the step that asks the model to call `locate_incident`
+stopped producing the call. The model answers the caller in prose instead:
 
 ```
 caller │ near Galaxy Picture Hall
 Civico │ Got it. Is that the exact spot, or should I file it as the lane
        │ near Galaxy Picture Hall?
 caller │ there is nothing else nearby, just the pole
-Civico │ Understood. I've got the location as near Galaxy Picture Hall,
-       │ and I'll file it there.
+Civico │ Understood. I've got the location, and I'll file it there.
 ```
 
-Nothing was filed; `location_settled` is unset. The tool's own constraint —
-`requires: session.project.broad_location_confirmed == True and
-session.report_complaint.category` — was satisfied at that point, and the
-`:::ordered_block` syntax is unchanged from the 3.20 examples. The step's
-`complete_when` did not hold the model in the step.
+Nothing filed, `location_settled` unset, no error anywhere. The tool's
+`requires` was satisfied and the `:::ordered_block` syntax matches the shipped
+3.20 examples.
 
-Not yet diagnosed, and worth separating from the migration itself: the three
-errors above are ordinary deprecations with good messages. This is a
-behavioural change with no diagnostic at all, which is the harder kind to
-notice — the agent sounds like it is working.
+**The diagnosis is the useful part.** Running `examples/mantle-voice-agent`
+from this repository on the same pin, its ordered block works — and its steps
+are shaped differently from ours. Every instruction step there completes by the
+model *setting a memory field*; the only tool call in the block is an
+`execute_tool` step, which the engine runs itself. Not one step depends on the
+model choosing to call a custom tool part-way through.
+
+So the reliable primitives inside an ordered block appear to be:
+
+| Step shape | Driven by | Reliable here |
+| --- | --- | --- |
+| `execute_tool:` | engine | yes |
+| `instructions:` completing on a field write | model, via `set_fields` | yes |
+| `instructions:` expecting a custom tool call | model's own choice | **no** |
+
+That third row is not documented as weaker than the others, and nothing warns
+you when a step ends without the call its instructions asked for.
+
+### The workaround, and where it stands
+
+`run_after_setting_<entry>` is the right mechanism: an engine-invoked post-write
+hook that fires when a settable field is written, never offered to the LLM,
+taking no arguments. Restructured so the model writes `spoken_location` and
+`cleaned_query`, and the hook resolves the location.
+
+Two things worth recording for anyone else trying this:
+
+- A shared hook in `tools/` cannot target a skill-local field:
+  `[mantle.validation.tools.invalid_post_write_hook] must target a settable
+  skill memory entry`. It has to live in the owning skill's `tools.py`.
+- The hook does fire, and its rollback works: returning a non-null `error`
+  removed a `spoken_location` written before any area was confirmed, which is
+  exactly right — a location recorded with nowhere to put it makes the step
+  look answered.
+
+What is still not solved is getting the model to write the field at the moment
+the step wants it. It writes `category` reliably through the same mechanism, so
+the difference is something about this step rather than field writes in
+general. Unresolved, and the reason this finding is filed as HIGH: the
+recommended way to build a strict sequence has a step shape that quietly does
+nothing.
 
 ## Still to test
 
